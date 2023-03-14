@@ -1,37 +1,36 @@
 require('dotenv').config();
-
 const express = require('express');
 const bodyParser = require('body-parser');
 const path = require('path');
-
 const app = express();
+const http = require('http').createServer(app);
+const io = require('socket.io')(http);
 const PORT = process.env.PORT || 3000;
 
-// Middleware to parse JSON request bodies
 app.use(bodyParser.json());
 
-// Route to handle requests to the root URL
+app.use('/listen/paxwebhook', (req, res, next) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  req.body.receivedFromPaxWebhook = true;
+  req.body.payloadFromPaxWebhook = req.body;
+  io.emit('payload', req.body); // Emit the payload to all connected clients
+  console.log(req.body); // Log the payload data in the server console
+  res.send('Payload received successfully!'); // Send a response back to the client
+});
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-app.get('/hello', (req, res) => {
-  res.send(' 10000000000002 Hello! ');
-});
-
-// Route to handle POST requests to the /api/echo endpoint
-app.post('/api/echo', (req, res) => {
-  const message = req.body.message;
-
-  if (!message) {
-    res.status(400).json({ error: 'Message is required' });
-    return;
-  }
-
-  res.json({ message });
-});
-
-// Start server
-app.listen(PORT, () => {
+http.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+});
+
+// Set up Socket.IO event listeners
+io.on('connection', (socket) => {
+  console.log(`Socket connected: ${socket.id}`);
+
+  socket.on('disconnect', () => {
+    console.log(`Socket disconnected: ${socket.id}`);
+  });
 });
